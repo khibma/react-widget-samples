@@ -1,31 +1,26 @@
-import {React} from 'jimu-core';
-import { BaseWidget, AllWidgetProps  } from 'jimu-core';
+import { React, BaseWidget, AllWidgetProps  } from 'jimu-core';
 import { JimuMapViewComponent, JimuMapView } from 'jimu-arcgis';
-
+import { IMConfig } from '../config';
 import { Button } from 'jimu-ui';
-import Distance2D = require('esri/widgets/DistanceMeasurement2D/DistanceMeasurement2DViewModel');
+
 import Measure = require('esri/widgets/Measurement');
-import MeasureVM = require('esri/widgets/Measurement/MeasurementViewModel');
 
 
 interface State{
   jimuMapView: JimuMapView;
-  measureWidgetVM: MeasureVM;
   measureActive: any;
   areaActive: any;
   activeTool: any;
 }
 
-export default class Widget extends BaseWidget<AllWidgetProps<{}>, State>{
+export default class Widget extends BaseWidget<AllWidgetProps<IMConfig>, State>{
   apiWidgetContainer: React.RefObject<HTMLDivElement>;
   measureWidget: Measure;
   mapView: __esri.MapView | __esri.SceneView;
-  //watchHandle: __esri.Handle;
 
   constructor(props) {
     super(props);
-    this.state = {jimuMapView: null, 
-      measureWidgetVM: null, 
+    this.state = {jimuMapView: null,  
       measureActive: false,
       areaActive: false,
       activeTool: null}
@@ -42,28 +37,12 @@ export default class Widget extends BaseWidget<AllWidgetProps<{}>, State>{
     if(!this.measureWidget){
       this.measureWidget = new Measure({        
         view: this.mapView,
-        container: this.apiWidgetContainer.current
+        container: this.apiWidgetContainer.current,
+        linearUnit: this.props.config.units
       })
     }
     console.log("after is a measure widget?", this.measureWidget)
     
-/*     console.log("is a measure widget VM?", this.state.measureWidgetVM)
-    if(!this.state.measureWidgetVM){      
-
-      // not sure if I need this. Adding it didnt change anything
-      const distance2d = new Distance2D({
-        view: this.mapView
-      }) 
-
-      const vm = new MeasureVM({
-        //activeViewModel: distance2d,
-        view: this.mapView,
-        activeTool: "distance",
-        linearUnit: "kilometers"
-      });
-      console.log("vm: ", vm)
-      console.log("component did update END")
-  } */
 }
 
   componentWillUnmount(){
@@ -73,13 +52,6 @@ export default class Widget extends BaseWidget<AllWidgetProps<{}>, State>{
       this.measureWidget = null;
     }
 
-    if(this.state.measureWidgetVM){
-      console.log("destroying the VM")
-      this.state.measureWidgetVM.destroy();
-      this.setState({
-        measureWidgetVM: null
-      })
-    }
   }
 
   onActiveViewChange = (jimuMapView: JimuMapView) => {
@@ -108,7 +80,7 @@ export default class Widget extends BaseWidget<AllWidgetProps<{}>, State>{
   
   render() {
      if(!this.isConfigured()){
-      return 'Select a map';
+      return 'Select a map and assign default units';
     } 
 
       return <div className="widget-use-map-view" style={{width: '100%', height: '100%', overflow: 'hidden'}}>
@@ -124,20 +96,16 @@ export default class Widget extends BaseWidget<AllWidgetProps<{}>, State>{
         <Button type="primary" onClick={() => this.switchTool("clear")} 
           className ='esri-widget--button esri-interactive esri-icon-trash' >
         </Button> 
-
         
         <JimuMapViewComponent useMapWidgetIds={this.props.useMapWidgetIds} onActiveViewChange={this.onActiveViewChange} ></JimuMapViewComponent>      
         <br /> 
-        <div ref={this.apiWidgetContainer}></div>
-        {/* <button id="distance" class="esri-widget--button esri-interactive esri-icon-measure-line" title="Distance Measurement Tool"></button> */}
-       
+        <div ref={this.apiWidgetContainer}></div>   
 
       </div>
-  }
-  
+  }  
 
   isConfigured = () => {
-    return this.props.useMapWidgetIds && this.props.useMapWidgetIds.length === 1;
+    return this.props.useMapWidgetIds && this.props.useMapWidgetIds.length === 1 && this.props.config.units;
   }
 
 }
