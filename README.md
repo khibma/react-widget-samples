@@ -1,4 +1,6 @@
-# react-widget-samples
+# experience builder widget samples
+
+Quickly find what the internet has created: https://github.com/search?o=desc&q=%22experience+builder%22&s=updated&type=Repositories
 
 Attempt at creating some Experience Builder widgets.
 
