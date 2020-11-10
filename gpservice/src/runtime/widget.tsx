@@ -133,23 +133,11 @@ export default class Widget extends React.PureComponent<
     .widget-gpReport{
       height: 420px;
     }
-    .widget-setting-addLayers {
-      .checkbox-row {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 8px;
-        }
-      }
-    `;
-    const textareastyle = css`
-    .textareastyle {
-      width: 200px;
-      height: 200px;
-      }    
     `;
     const PDFDIV = () => (
      <div id="PDF" dangerouslySetInnerHTML={{__html: this.state.outputPDF }} /> 
     )
+    
     return (
       <div className="widget-gpReport jimu-widget" css={style}>
         {this.props.hasOwnProperty("useMapWidgetIds") &&
@@ -188,7 +176,7 @@ export default class Widget extends React.PureComponent<
         {this.state.showOutputDiv ? <PDFDIV/> : null }
 
         <div id="serviceMsgs">
-          <textarea id="messages" rows={12} cols={40} value={this.state.xMsgs} className="textareastyle" />
+          <textarea id="messages" rows={12} cols={40} value={this.state.xMsgs} />
         </div>
       </form>
     </div>
