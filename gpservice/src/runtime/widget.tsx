@@ -1,8 +1,13 @@
 /** @jsx jsx */
-import {React, AllWidgetProps, css, jsx } from 'jimu-core';
+import {React, AllWidgetProps, css, jsx, IMDataSourceInfo, DataSourceManager,
+   DataSourceStatus, FeatureLayerQueryParams, DataSourceComponent, DataRecord, DataSource, DataSourceTypes, defaultMessages as jimuCoreDefaultMessage  } from 'jimu-core';
 import {loadArcGISJSAPIModules, JimuMapViewComponent, JimuMapView} from "jimu-arcgis";
 import { IMConfig } from '../config';
+
+import {FeatureLayerDataSource, } from 'jimu-arcgis/arcgis-data-source';
 import defaultMessages from "./translations/default";
+import { queryAllByDisplayValue } from '@testing-library/react';
+
 
 interface IState {
   FACIDs: string;
@@ -11,7 +16,9 @@ interface IState {
   xMgsIdx: number;
   outputPDF: string;
   showOutputDiv: boolean;
+  genRptBtn: boolean;
   jimuMapView: JimuMapView;
+  datasource: FeatureLayerDataSource ;
 }
 
 export default class Widget extends React.PureComponent<
@@ -29,7 +36,9 @@ export default class Widget extends React.PureComponent<
     xMgsIdx: 0,
     outputPDF: "",
     showOutputDiv: false,
+    genRptBtn: false,
     jimuMapView: null,
+    datasource: null
   };
 
   // Every time the input box value changes, this function gets called.
@@ -53,7 +62,16 @@ export default class Widget extends React.PureComponent<
       xMgsIdx: 0,
       xMsgs: ""
     })
+  }
 
+  query = () => {
+
+    let geometry = (this.props.stateProps && this.props.stateProps.EXTENT_CHANGE) ? this.props.stateProps.EXTENT_CHANGE: null;
+    return {
+      where: '1=1',
+      outFields: ['*'],
+      geometry: geometry
+    }
   }
 
   formSubmit = (evt) => {
@@ -106,7 +124,12 @@ export default class Widget extends React.PureComponent<
             }
             // Call setState after we've looped through all messages to cause the textarea to render them
             this.setState({
-             xMgsIdx: j['messages'].length
+              //The disable of the generate report button is getting stepped on by the number of features
+              //  End goal is to only show when more than "20" features are in the display.
+              //  Once less then 20, can remove the UI element and then allow report generation.
+              //  will need to revisit the overall logic.
+              genRptBtn: true,
+              xMgsIdx: j['messages'].length
             });
           }
         };
@@ -117,16 +140,25 @@ export default class Widget extends React.PureComponent<
             if (x.value){
               this.setState({
                 outputPDF: "<a href='"+ x.value['url'] + "' target=_blank>Download File (right-click, save-as)</a>",
-                showOutputDiv : true
+                showOutputDiv : true,
+                genRptBtn: false
               })             
             }
           })
-        })     
-
+        })
       });
 
     });
   };
+
+  isDsConfigured = () => {
+    if (this.props.useDataSources &&
+      this.props.useDataSources.length === 1) {
+      return true;
+    }
+    return false;
+  }
+
 
   render() {
     const style = css`
@@ -137,6 +169,10 @@ export default class Widget extends React.PureComponent<
     const PDFDIV = () => (
      <div id="PDF" dangerouslySetInnerHTML={{__html: this.state.outputPDF }} /> 
     )
+
+    const {useDataSources, stateProps} = this.props;
+    const {datasource} = this.state;
+	  //let q = this.query();
     
     return (
       <div className="widget-gpReport jimu-widget" css={style}>
@@ -169,7 +205,7 @@ export default class Widget extends React.PureComponent<
             onChange={this.handleYearRangeChange}
           />
           <br />
-          <button>{defaultMessages.launchGPService}</button>
+          <button disabled={this.state.genRptBtn}>{defaultMessages.launchGPService}</button>
         </div>
         
         {/* Show the download PDF div when there is a value */}
@@ -179,8 +215,35 @@ export default class Widget extends React.PureComponent<
           <textarea id="messages" rows={12} cols={40} value={this.state.xMsgs} />
         </div>
       </form>
+
+
+      <DataSourceComponent  query={this.query()} widgetId={this.props.id} useDataSource={useDataSources[0]} onDataSourceCreated={this.onDs}>
+        {this.renderCount.bind(this)}
+        </DataSourceComponent>         
+
     </div>
     );
+  }
+
+  renderCount (ds: DataSource, queryStatus: DataSourceStatus, records:DataRecord[], toto:any) {
+    let featureCount = 0;
+    let fac_ids = [];
+    if(this.isDsConfigured()){
+      featureCount = ds.getRecords().length;
+
+      ds.getRecords().forEach( feat => fac_ids.push(feat['feature']['attributes']['fac_id']))
+      this.setState({
+        FACIDs: fac_ids.toString(),
+        genRptBtn: (featureCount > 20) ? true : false
+      })
+    }
+
+    return <span>{defaultMessages.featuresDisplayed} : {featureCount}</span>
+  }
+  onDs = (ds) => {
+    this.setState({
+      datasource: ds
+    })
   }
 
 }

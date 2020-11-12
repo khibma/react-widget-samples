@@ -4,5 +4,6 @@ export default {
 	facIDs: "31840,32461,32287",
 	yearrange: "2015_2019",
 	instructions:
-	  "Enter FacIDs (comma seperated) and a year range (yyyy_yyyy)."
+	  "Enter FacIDs (comma seperated) and a year range (yyyy_yyyy). (Can only report on 20 or less facilities)",
+	  featuresDisplayed: 'Numbers of features displayed'
   };

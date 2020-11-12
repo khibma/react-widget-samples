@@ -15,5 +15,12 @@
   "defaultSize": {
     "width": 300,
     "height": 600
-  }
+  },
+  "messageActions": [
+    {
+      "name": "query",
+      "label": "Query by extent",
+      "uri": "runtime/actions/query-actions"
+    }
+  ]
 }
