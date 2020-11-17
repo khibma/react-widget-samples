@@ -1,12 +1,9 @@
 /** @jsx jsx */
-import {React, AllWidgetProps, css, jsx, IMDataSourceInfo, DataSourceManager,
-   DataSourceStatus, FeatureLayerQueryParams, DataSourceComponent, DataRecord, DataSource, DataSourceTypes, defaultMessages as jimuCoreDefaultMessage  } from 'jimu-core';
+import {React, AllWidgetProps, css, jsx, DataSourceStatus,  DataSourceComponent, DataRecord,
+   DataSource, DataSourceTypes, defaultMessages as jimuCoreDefaultMessage  } from 'jimu-core';
 import {loadArcGISJSAPIModules, JimuMapViewComponent, JimuMapView} from "jimu-arcgis";
-import { IMConfig } from '../config';
-
-import {FeatureLayerDataSource, } from 'jimu-arcgis/arcgis-data-source';
+//import {FeatureLayerDataSource, } from 'jimu-arcgis/arcgis-data-source';
 import defaultMessages from "./translations/default";
-import { queryAllByDisplayValue } from '@testing-library/react';
 
 
 interface IState {
@@ -18,18 +15,18 @@ interface IState {
   showOutputDiv: boolean;
   genRptBtn: boolean;
   jimuMapView: JimuMapView;
-  datasource: FeatureLayerDataSource ;
+  facility_layer: string;
+  clusterinOn: boolean;
+  scale: string;
+  gpRunning: boolean;
 }
 
-export default class Widget extends React.PureComponent<
-  AllWidgetProps<IMConfig>,
-  IState
-> {
+export default class Widget extends React.PureComponent<AllWidgetProps<{}>, IState> {
   // Give types to the modules we import from the ArcGIS API for JavaScript
   // to tell TypeScript what types they are.
   Geoprocessor: typeof __esri.Geoprocessor;
 
-  state = {
+  state: IState = {
     FACIDs: defaultMessages.facIDs,
     yearrange: defaultMessages.yearrange,
     xMsgs: "",
@@ -37,8 +34,11 @@ export default class Widget extends React.PureComponent<
     outputPDF: "",
     showOutputDiv: false,
     genRptBtn: false,
-    jimuMapView: null,
-    datasource: null
+    jimuMapView: undefined, //null
+    facility_layer: null,
+    clusterinOn: true,
+    scale: "",
+    gpRunning: false
   };
 
   // Every time the input box value changes, this function gets called.
@@ -64,29 +64,18 @@ export default class Widget extends React.PureComponent<
     })
   }
 
-  query = () => {
-
-    let geometry = (this.props.stateProps && this.props.stateProps.EXTENT_CHANGE) ? this.props.stateProps.EXTENT_CHANGE: null;
-    return {
-      where: '1=1',
-      outFields: ['*'],
-      geometry: geometry
-    }
-  }
-
   formSubmit = (evt) => {
     evt.preventDefault();
 
     this.cleanup();
 
-    // Error cases
-    /* 
+    // Error cases    
     if (!this.state.jimuMapView) {
       // Data Source was not configured - we cannot do anything.
       console.error("Please configure a Data Source with the widget.");
       return;
     }
-     */
+     
     if (this.state.FACIDs == "") {
       // Nothing was typed into the box!
       alert("Ensure Facility IDs have been entered");
@@ -99,6 +88,9 @@ export default class Widget extends React.PureComponent<
       "esri/tasks/Geoprocessor"
     ]).then((modules) => {
       [this.Geoprocessor] = modules;
+      this.setState({
+        gpRunning: true
+      })
 
       const gpurl = "https://msdidfo5.esriservices.ca/arcgis/rest/services/CAPRI/CapriReportX/GPServer/CAPRI%20Report";
       const gp = new this.Geoprocessor({
@@ -141,7 +133,8 @@ export default class Widget extends React.PureComponent<
               this.setState({
                 outputPDF: "<a href='"+ x.value['url'] + "' target=_blank>Download File (right-click, save-as)</a>",
                 showOutputDiv : true,
-                genRptBtn: false
+                genRptBtn: false,
+                gpRunning: false
               })             
             }
           })
@@ -159,6 +152,103 @@ export default class Widget extends React.PureComponent<
     return false;
   }
 
+  onDs = (ds) => {
+    this.setState({
+      facility_layer: ds.id
+    })
+  }
+
+  query = () => {
+    let geometry = (this.props.stateProps && this.props.stateProps.EXTENT_CHANGE) ? this.props.stateProps.EXTENT_CHANGE: null;
+    return {
+      where: '1=1',
+      outFields: ['*'],
+      geometry: geometry
+    }
+  }
+
+  renderCount (ds: DataSource, queryStatus: DataSourceStatus, records:DataRecord[], toto:any) {
+    let featureCount = 0;
+    let fac_ids = [];
+    if(this.isDsConfigured()){
+      featureCount = ds.getRecords().length;
+
+      ds.getRecords().forEach( feat => fac_ids.push(feat['feature']['attributes']['fac_id']))
+      this.setState({
+        FACIDs: fac_ids.toString(),
+        genRptBtn: (featureCount > 20) ? true : false
+      })
+    }
+    return <span>{defaultMessages.featuresDisplayed} : {featureCount}</span>
+  }
+
+  do_cluster = {
+    type: "cluster",
+    clusterRadius: "120px",
+    popupTemplate: {
+      content: "This cluster represents <b>{cluster_count}</b> features.",
+      fieldInfos: [{
+        fieldName: "cluster_count",
+        format: {
+          digitSeparator: true,
+          places: 0
+        }
+      }]
+    }
+  }
+
+  no_cluster = {
+    type: "cluster",
+    clusterRadius: "10px",
+    popupTemplate: {
+      content: "This cluster represents <b>{cluster_count}</b> features.",
+      fieldInfos: [{
+        fieldName: "cluster_count",
+        format: {
+          digitSeparator: true,
+          places: 0
+        }
+      }]
+    }
+  }
+  // componentDidMount ??
+  componentDidUpdate () {    
+    if (this.state.jimuMapView){
+      let widget_id = this.state.jimuMapView.mapWidgetId;
+      let layer_view_id = widget_id + "-" + this.state.facility_layer;
+      this.state.jimuMapView.jimuLayerViews[layer_view_id].layer.featureReduction = this.do_cluster;
+      this.setState({
+        clusterinOn : true
+      })
+    }
+
+  }
+  
+  activeViewChangeHandler = (jmv: JimuMapView) => {
+    if (jmv) {
+      this.setState({
+        jimuMapView: jmv
+      });
+      
+    //jmv.view.watch("extent", (evt: Extent) => {
+      jmv.view.watch("scale", (evt) => {
+        console.log(evt)
+        let clusterStatus = true;
+        if (evt < 100000){
+          let widget_id = this.state.jimuMapView.mapWidgetId;
+          let layer_view_id = widget_id + "-" + this.state.facility_layer;
+          this.state.jimuMapView.jimuLayerViews[layer_view_id].layer.featureReduction = this.no_cluster;
+          clusterStatus = false;
+        } 
+        this.setState({
+          clusterinOn : clusterStatus,
+          scale: evt
+        })        
+
+      });
+    }
+  }
+
 
   render() {
     const style = css`
@@ -169,25 +259,17 @@ export default class Widget extends React.PureComponent<
     const PDFDIV = () => (
      <div id="PDF" dangerouslySetInnerHTML={{__html: this.state.outputPDF }} /> 
     )
-
-    const {useDataSources, stateProps} = this.props;
-    const {datasource} = this.state;
-	  //let q = this.query();
-    
+  
     return (
       <div className="widget-gpReport jimu-widget" css={style}>
-        {this.props.hasOwnProperty("useMapWidgetIds") &&
+      {this.props.hasOwnProperty("useMapWidgetIds") &&
           this.props.useMapWidgetIds &&
           this.props.useMapWidgetIds.length === 1 && (
             <JimuMapViewComponent
               useMapWidgetIds={this.props.useMapWidgetIds}
-              onActiveViewChange={(jmv: JimuMapView) => {
-                this.setState({
-                  jimuMapView: jmv,
-                });
-              }}
+              onActiveViewChange={this.activeViewChangeHandler}
             />
-          )}
+          )} 
 
       <p>{defaultMessages.instructions}</p>
 
@@ -216,34 +298,20 @@ export default class Widget extends React.PureComponent<
         </div>
       </form>
 
-
-      <DataSourceComponent  query={this.query()} widgetId={this.props.id} useDataSource={useDataSources[0]} onDataSourceCreated={this.onDs}>
+      <DataSourceComponent  query={this.query()} widgetId={this.props.id} useDataSource={this.props.useDataSources[0]} onDataSourceCreated={this.onDs}>
         {this.renderCount.bind(this)}
-        </DataSourceComponent>         
+      </DataSourceComponent>     
+
+      <div id="appinfo"> 
+      <b>app info</b>: <br />
+        GP Service is running: {this.state.gpRunning.toString()} <br></br>
+        Clustering: {this.state.clusterinOn.toString()} <br></br>
+        Scale: {this.state.scale} <br></br>
+      </div>    
+      
 
     </div>
     );
-  }
-
-  renderCount (ds: DataSource, queryStatus: DataSourceStatus, records:DataRecord[], toto:any) {
-    let featureCount = 0;
-    let fac_ids = [];
-    if(this.isDsConfigured()){
-      featureCount = ds.getRecords().length;
-
-      ds.getRecords().forEach( feat => fac_ids.push(feat['feature']['attributes']['fac_id']))
-      this.setState({
-        FACIDs: fac_ids.toString(),
-        genRptBtn: (featureCount > 20) ? true : false
-      })
-    }
-
-    return <span>{defaultMessages.featuresDisplayed} : {featureCount}</span>
-  }
-  onDs = (ds) => {
-    this.setState({
-      datasource: ds
-    })
   }
 
 }
