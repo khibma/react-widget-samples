@@ -1,7 +1,7 @@
 import { ImmutableObject } from "seamless-immutable";
 
 export interface Config {
-  zoomToLayer: boolean;
+  reportingURL: string;
 }
 
 export type IMConfig = ImmutableObject<Config>;

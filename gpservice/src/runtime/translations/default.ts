@@ -2,8 +2,7 @@ export default {
 	_widgetLabel: "Create Drug and Pesticide Report",
 	launchGPService: "Generate Report",
 	facIDs: "31840,32461,32287",
-	yearrange: "2015_2019",
 	instructions:
-	  "Enter FacIDs (comma seperated) and a year range (yyyy_yyyy). (Can only report on 20 or less facilities)",
+	  "Report on facilities in the map display. (Reporting only availabile for 20 and less facilities)",
 	  featuresDisplayed: 'Numbers of features displayed'
   };

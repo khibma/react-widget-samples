@@ -6,6 +6,7 @@
   "author": "Esri Canada - Kevin Hibma",
   "description": ".",
   "copyright": "",
+  "dependency": "jimu-arcgis",
   "license": "http://www.apache.org/licenses/LICENSE-2.0",
   "properties": {},
   "translatedLocales": [
@@ -13,7 +14,7 @@
     "fr"
   ],
   "defaultSize": {
-    "width": 300,
+    "width": 400,
     "height": 600
   },
   "messageActions": [
